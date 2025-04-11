@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>レインボー泡シミュレーション</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script>
+    const { Engine, Render, World, Bodies, Body, Runner, Events } = Matter;
+
+    const engine = Engine.create();
+    engine.gravity.y = 0;
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    const render = Render.create({
+      element: document.body,
+      engine: engine,
+      options: {
+        width: width,
+        height: height,
+        wireframes: false,
+        background: 'black'
+      }
+    });
+
+    // 壁を作成
+    const walls = [
+      Bodies.rectangle(width / 2, 0, width, 10, { isStatic: true }), // 上
+      Bodies.rectangle(width / 2, height, width, 10, { isStatic: true }), // 下
+      Bodies.rectangle(0, height / 2, 10, height, { isStatic: true }), // 左
+      Bodies.rectangle(width, height / 2, 10, height, { isStatic: true }) // 右
+    ];
+    World.add(engine.world, walls);
+
+    // 泡の配列
+    const bubbles = [];
+    const count = 25;
+
+    function hsvToRgb(h, s, v) {
+      let f = (n, k = (n + h / 60) % 6) =>
+        v - v * s * Math.max(Math.min(k, 4 - k, 1), 0);
+      return [f(5) * 255, f(3) * 255, f(1) * 255];
+    }
+
+    for (let i = 0; i < count; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const r = 30;
+      const bubble = Bodies.circle(x, y, r, {
+        restitution: 1,
+        friction: 0,
+        frictionAir: 0,
+        render: {
+          fillStyle: 'white'
+        }
+      });
+
+      // ランダムな方向（45〜102度）に速度を与える
+      const angle = (Math.random() * (102 - 45) + 45) * (Math.PI / 180);
+      const speed = 4;
+      Body.setVelocity(bubble, {
+        x: Math.cos(angle) * speed,
+        y: Math.sin(angle) * speed
+      });
+
+      bubble.hue = Math.random() * 360;
+
+      bubbles.push(bubble);
+    }
+
+    World.add(engine.world, bubbles);
+
+    // 色を変化させる
+    Events.on(render, 'afterRender', () => {
+      const ctx = render.context;
+      bubbles.forEach(bubble => {
+        bubble.hue = (bubble.hue + 1) % 360;
+        const [r, g, b] = hsvToRgb(bubble.hue, 1, 1);
+        ctx.beginPath();
+        ctx.arc(bubble.position.x, bubble.position.y, bubble.circleRadius, 0, 2 * Math.PI);
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.fill();
+      });
+    });
+
+    Render.run(render);
+    Runner.run(Runner.create(), engine);
+  </script>
+</body>
+</html>
